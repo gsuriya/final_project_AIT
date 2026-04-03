@@ -1,0 +1,45 @@
+<h2>entries for {{date}}</h2>
+
+<form method="GET" action="/">
+  <label>date: </label>
+  <input type="date" name="date" value="{{date}}">
+  <button type="submit">go</button>
+</form>
+
+{{#if entries.length}}
+<table>
+  <tr>
+    <th>food</th>
+    <th>cals</th>
+    <th></th>
+  </tr>
+  {{#each entries}}
+  <tr>
+    <td>{{this.food}}</td>
+    <td>{{this.calories}}</td>
+    <td>
+      <form method="POST" action="/delete/{{this._id}}" style="display:inline;">
+        <button class="del-btn" type="submit">delete</button>
+      </form>
+    </td>
+  </tr>
+  {{/each}}
+</table>
+<p class="total">total: {{total}} calories</p>
+{{else}}
+<p>no entries yet for this day. go add some food!</p>
+{{/if}}
+
+<!--
+  research topic: chart.js
+  TODO: gonna add a chart here that shows calories per meal
+  just including the canvas for now, will hook up the chart later
+-->
+<br>
+<canvas id="calChart" width="400" height="200"></canvas>
+<script>
+// stub for chart.js integration
+// plan: show a bar chart of each food entry's calories for the day
+// will finish this for the final milestone
+// reference: https://www.chartjs.org/docs/latest/getting-started/
+</script>
