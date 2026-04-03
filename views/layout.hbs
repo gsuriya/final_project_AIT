@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>calorie tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px auto; max-width: 550px; padding: 0 15px; }
+    h1 { margin-bottom: 5px; }
+    nav a { margin-right: 12px; }
+    hr { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { text-align: left; padding: 6px; border-bottom: 1px solid #ccc; }
+    input, button { padding: 5px 8px; margin: 3px 0; }
+    input[type="text"], input[type="number"], input[type="date"] { width: 100%; box-sizing: border-box; }
+    .err { color: red; }
+    .total { font-weight: bold; margin-top: 8px; }
+    .del-btn { background: crimson; color: white; border: none; cursor: pointer; font-size: 12px; padding: 3px 7px; }
+  </style>
+
+  <!-- research topic: chart.js for visualizing calories -->
+  <!-- gonna try to add a bar chart or something eventually -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>🍔 calorie tracker</h1>
+  <nav>
+    <a href="/">home</a> |
+    <a href="/add">+ add food</a>
+  </nav>
+  <hr>
+  {{{body}}}
+</body>
+</html>

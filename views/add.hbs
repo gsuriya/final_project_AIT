@@ -1,0 +1,18 @@
+<h2>add food</h2>
+
+{{#if error}}
+  <p class="err">{{error}}</p>
+{{/if}}
+
+<form method="POST" action="/add">
+  <label>what did you eat?</label>
+  <input type="text" name="food" placeholder="ex: chicken sandwich" required>
+  <br>
+  <label>how many calories?</label>
+  <input type="number" name="calories" min="0" placeholder="ex: 350" required>
+  <br>
+  <label>when?</label>
+  <input type="date" name="date" value="{{today}}" required>
+  <br><br>
+  <button type="submit">add entry</button>
+</form>
