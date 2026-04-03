@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: calorie-tracker
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node app.mjs
+    envVars:
+      - key: DSN
+        sync: false
+      - key: NODE_ENV
+        value: production
