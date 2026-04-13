@@ -6,6 +6,18 @@
   <button type="submit">go</button>
 </form>
 
+{{#if goal}}
+<div class="goal-box">
+  <p>🎯 goal: <strong>{{goal}} cals</strong></p>
+  <p>eaten so far: <strong>{{total}} cals</strong></p>
+  {{#if overGoal}}
+    <p class="over">⚠️ you went over by {{overBy}} cals... rip</p>
+  {{else}}
+    <p class="under">✅ {{remaining}} cals left, you got this</p>
+  {{/if}}
+</div>
+{{/if}}
+
 {{#if entries.length}}
 <table>
   <tr>
@@ -19,7 +31,7 @@
     <td>{{this.calories}}</td>
     <td>
       <form method="POST" action="/delete/{{this._id}}" style="display:inline;">
-        <button class="del-btn" type="submit">delete</button>
+        <button class="del-btn" type="submit">x</button>
       </form>
     </td>
   </tr>
@@ -31,15 +43,61 @@
 {{/if}}
 
 <!--
-  research topic: chart.js
-  TODO: gonna add a chart here that shows calories per meal
-  just including the canvas for now, will hook up the chart later
+  research topic: chart.js (3 points)
+  bar chart showing calories per food entry for the selected day
+  reference: https://www.chartjs.org/docs/latest/getting-started/
 -->
-<br>
-<canvas id="calChart" width="400" height="200"></canvas>
+{{#if entries.length}}
+<div class="chart-wrap">
+  <h3>breakdown</h3>
+  <canvas id="calChart" width="400" height="200"></canvas>
+</div>
 <script>
-// stub for chart.js integration
-// plan: show a bar chart of each food entry's calories for the day
-// will finish this for the final milestone
-// reference: https://www.chartjs.org/docs/latest/getting-started/
+// chart.js integration - took me a while to get this working ngl
+// basically just grabs the food names and calorie values
+// and throws them into a bar chart
+const labels = {{{chartLabels}}};
+const data = {{{chartData}}};
+
+// some colors i picked, cycles thru if theres more than 5 entries
+// didnt wanna overthink this lol
+const colors = [
+  'rgba(255, 99, 132, 0.6)',
+  'rgba(54, 162, 235, 0.6)',
+  'rgba(255, 206, 86, 0.6)',
+  'rgba(75, 192, 192, 0.6)',
+  'rgba(153, 102, 255, 0.6)',
+  'rgba(255, 159, 64, 0.6)'
+];
+
+// pick colors for each bar, wraps around if needed
+const barColors = data.map((_, i) => colors[i % colors.length]);
+
+const ctx = document.getElementById('calChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'calories',
+      data: data,
+      backgroundColor: barColors,
+      borderColor: barColors.map(c => c.replace('0.6', '1')),
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: { display: true, text: 'cals' }
+      }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
 </script>
+{{/if}}

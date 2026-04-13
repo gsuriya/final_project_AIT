@@ -33,7 +33,33 @@ app.get('/', async (req, res) => {
     // using reduce here (higher order function!!)
     const total = entries.reduce((sum, entry) => sum + entry.calories, 0);
 
-    res.render('index', { entries, total, date: dateFilter });
+    // grab the goal for this day if there is one
+    const goalDoc = await DailyGoal.findOne({ date: dateFilter });
+    const goal = goalDoc ? goalDoc.calorieGoal : null;
+
+    // need to pass chart data as json strings so handlebars doesnt freak out
+    // map is a higher order function too btw
+    const chartLabels = JSON.stringify(entries.map(e => e.food));
+    const chartData = JSON.stringify(entries.map(e => e.calories));
+
+    // figure out if theyre over or under their goal
+    let overGoal = false;
+    let overBy = 0;
+    let remaining = 0;
+    if (goal) {
+      if (total > goal) {
+        overGoal = true;
+        overBy = total - goal;
+      } else {
+        remaining = goal - total;
+      }
+    }
+
+    res.render('index', {
+      entries, total, date: dateFilter,
+      goal, chartLabels, chartData,
+      overGoal, overBy, remaining
+    });
   } catch(err) {
     // lol hopefully this never happens
     console.log(err);
