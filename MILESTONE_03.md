@@ -3,33 +3,38 @@ Milestone 03
 
 Repository Link
 ---
-https://github.com/nyu-csci-ua-0467-001-002-fall-2024/final-project-gsuriya
-
-Special Instructions for Using Form (or Login details if auth is part of your project)
----
-no auth needed. just go to /add to log food and /goal to set a calorie goal for the day
+https://github.com/gsuriya/final_project_AIT
 
 URL for form 1 (from previous milestone) 
 ---
-(TODO: add deployed url)
+https://calorie-tracker-r2mc.onrender.com/add
 
 Special Instructions for Form 1
 ---
-fill in food name, calories, and date. hit add entry. go back to home page to see it
+fill in food name, calories, and a date then hit add entry. youll get redirected to the home page where you can see the entry you just added. you can also delete entries from there
 
 URL for form 2 (for current milestone)
 ---
-(TODO: add deployed url)
+https://calorie-tracker-r2mc.onrender.com/goal
 
 Special Instructions for Form 2
 ---
-pick a date, type in how many calories you wanna eat that day, hit save. go to home page to see your goal vs what you actually ate
+pick a date, type in how many calories you wanna eat that day, and hit save goal. then go to the home page and pick that same date to see your goal vs what you actually ate. if you already set a goal for that day it just updates it
 
 URL(s) to github repository with commits that show progress on research
 --- 
-(TODO: add github links)
+Research topic: Chart.js (client-side JavaScript library, 3 points)
+- chart rendering with real data from db: https://github.com/gsuriya/final_project_AIT/blob/main/views/index.hbs#L48-L91
+- chart.js CDN include: https://github.com/gsuriya/final_project_AIT/blob/main/views/layout.hbs#L55
+- passing chart data as JSON from route: https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L68-L69
+
+Also used:
+- ES6 class (DaySummary) for calorie calculations: https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L20-L48
+- Higher order functions (reduce, map, filter) throughout app.mjs
 
 References 
 ---
-- chart.js docs: https://www.chartjs.org/docs/latest/getting-started/
-- express handlebars setup based on class notes / homework
+- chart.js getting started: https://www.chartjs.org/docs/latest/getting-started/
+- chart.js bar chart docs: https://www.chartjs.org/docs/latest/charts/bar.html
+- mongoose findOneAndUpdate for upsert pattern: https://mongoosejs.com/docs/tutorials/findoneandupdate.html
+- express handlebars setup based on class notes and homework
