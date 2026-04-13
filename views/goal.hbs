@@ -1,0 +1,23 @@
+<h2>set calorie goal 🎯</h2>
+
+{{#if error}}
+  <p class="err">{{error}}</p>
+{{/if}}
+
+{{#if success}}
+  <p class="ok">{{success}}</p>
+{{/if}}
+
+<form method="POST" action="/goal">
+  <label>which day?</label>
+  <input type="date" name="date" value="{{today}}" required>
+  <br>
+  <label>how many cals you tryna eat?</label>
+  <input type="number" name="calorieGoal" min="0" placeholder="ex: 2000" value="{{currentGoal}}" required>
+  <br><br>
+  <button type="submit">save goal</button>
+</form>
+
+{{#if currentGoal}}
+<p style="margin-top:14px; color:#555;">current goal for {{today}}: <strong>{{currentGoal}} cals</strong></p>
+{{/if}}

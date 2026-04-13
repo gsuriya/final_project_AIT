@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import './db.mjs';
-import { FoodEntry } from './db.mjs';
+import { FoodEntry, DailyGoal } from './db.mjs';
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -71,6 +71,55 @@ app.post('/add', async (req, res) => {
   } catch(err) {
     console.log(err);
     res.render('add', { error: 'something went wrong saving that... try again?', today: date || '' });
+  }
+});
+
+// page to set a calorie goal for a day
+app.get('/goal', async (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const dateForGoal = req.query.date || today;
+
+  try {
+    const existing = await DailyGoal.findOne({ date: dateForGoal });
+    res.render('goal', {
+      today: dateForGoal,
+      currentGoal: existing ? existing.calorieGoal : ''
+    });
+  } catch(err) {
+    console.log(err);
+    res.render('goal', { today: dateForGoal });
+  }
+});
+
+// handle goal form submit
+// uses findOneAndUpdate so it overwrites if theres already a goal for that day
+app.post('/goal', async (req, res) => {
+  const { date, calorieGoal } = req.body;
+
+  if (!date || !calorieGoal) {
+    return res.render('goal', { error: 'fill in both fields pls', today: date || '' });
+  }
+
+  const goalNum = parseInt(calorieGoal);
+  if (isNaN(goalNum) || goalNum < 0) {
+    return res.render('goal', { error: 'goal has to be a positive number dude', today: date || '' });
+  }
+
+  try {
+    // upsert - create if doesnt exist, update if it does
+    await DailyGoal.findOneAndUpdate(
+      { date: date },
+      { date: date, calorieGoal: goalNum },
+      { upsert: true, new: true }
+    );
+    res.render('goal', {
+      success: 'goal saved! go check the home page',
+      today: date,
+      currentGoal: goalNum
+    });
+  } catch(err) {
+    console.log(err);
+    res.render('goal', { error: 'couldnt save that, idk why', today: date || '' });
   }
 });
 
