@@ -16,6 +16,38 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// es6 class for summarizing a days worth of food
+// kinda overkill but we need to use classes so here we are
+class DaySummary {
+  constructor(entries, goal) {
+    this.entries = entries;
+    this.goal = goal;
+    // use reduce to get total (higher order function)
+    this.total = entries.reduce((sum, e) => sum + e.calories, 0);
+  }
+
+  isOverGoal() {
+    if (!this.goal) return false;
+    return this.total > this.goal;
+  }
+
+  getRemaining() {
+    if (!this.goal) return 0;
+    return Math.max(0, this.goal - this.total);
+  }
+
+  getOverBy() {
+    if (!this.goal) return 0;
+    return Math.max(0, this.total - this.goal);
+  }
+
+  // filter entries above a certain calorie threshold
+  // another higher order function usage
+  getHighCalEntries(threshold) {
+    return this.entries.filter(e => e.calories > threshold);
+  }
+}
+
 // ==============================
 // ROUTES
 // ==============================
@@ -29,36 +61,28 @@ app.get('/', async (req, res) => {
   try {
     const entries = await FoodEntry.find({ date: dateFilter }).sort({ createdAt: -1 });
 
-    // calc total cals for the day
-    // using reduce here (higher order function!!)
-    const total = entries.reduce((sum, entry) => sum + entry.calories, 0);
-
     // grab the goal for this day if there is one
     const goalDoc = await DailyGoal.findOne({ date: dateFilter });
     const goal = goalDoc ? goalDoc.calorieGoal : null;
+
+    // use the DaySummary class to do the math stuff
+    const summary = new DaySummary(entries, goal);
 
     // need to pass chart data as json strings so handlebars doesnt freak out
     // map is a higher order function too btw
     const chartLabels = JSON.stringify(entries.map(e => e.food));
     const chartData = JSON.stringify(entries.map(e => e.calories));
 
-    // figure out if theyre over or under their goal
-    let overGoal = false;
-    let overBy = 0;
-    let remaining = 0;
-    if (goal) {
-      if (total > goal) {
-        overGoal = true;
-        overBy = total - goal;
-      } else {
-        remaining = goal - total;
-      }
-    }
-
     res.render('index', {
-      entries, total, date: dateFilter,
-      goal, chartLabels, chartData,
-      overGoal, overBy, remaining
+      entries,
+      total: summary.total,
+      date: dateFilter,
+      goal,
+      chartLabels,
+      chartData,
+      overGoal: summary.isOverGoal(),
+      overBy: summary.getOverBy(),
+      remaining: summary.getRemaining()
     });
   } catch(err) {
     // lol hopefully this never happens
@@ -86,10 +110,14 @@ app.post('/add', async (req, res) => {
   if (isNaN(cal) || cal < 0) {
     return res.render('add', { error: 'calories has to be a number thats 0 or more', today: date || '' });
   }
+  if (cal > 10000) {
+    return res.render('add', { error: 'bro thats way too many calories lol max is 10000', today: date || '' });
+  }
 
   // sanitize the food name so no one injects html or whatever
-  // just using a simple replace to strip tags for now
-  const cleanFood = food.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // also trim to 100 chars cuz no food name needs to be longer than that
+  let cleanFood = food.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  cleanFood = cleanFood.trim().substring(0, 100);
 
   try {
     await FoodEntry.create({ food: cleanFood, calories: cal, date });
@@ -129,6 +157,9 @@ app.post('/goal', async (req, res) => {
   const goalNum = parseInt(calorieGoal);
   if (isNaN(goalNum) || goalNum < 0) {
     return res.render('goal', { error: 'goal has to be a positive number dude', today: date || '' });
+  }
+  if (goalNum > 20000) {
+    return res.render('goal', { error: 'thats... a lot. max is 20000', today: date || '' });
   }
 
   try {
