@@ -3,11 +3,11 @@ Milestone 04 - Final Project Documentation
 
 NetID
 ---
-(TODO: replace with your netid)
+sg8522
 
 Name
 ---
-(TODO: replace with your first and last name)
+Suriya Gnanasundar
 
 Repository Link
 ---
