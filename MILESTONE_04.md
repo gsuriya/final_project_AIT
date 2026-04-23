@@ -43,11 +43,11 @@ from the home page click the pencil edit button next to any food entry, it takes
 
 First link to github line number(s) for constructor, HOF, etc.
 ---
-https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L26-L50
+https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L25-L53
 
 Second link to github line number(s) for constructor, HOF, etc.
 ---
-https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L55-L67
+https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L57-L70
 
 Short description for links above
 ---
@@ -66,13 +66,13 @@ Description of research topics above with points
 
 Links to github line number(s) for research topics described above (one link per line)
 ---
-chart.js chart rendering: https://github.com/gsuriya/final_project_AIT/blob/main/views/index.hbs#L56-L102
-chart.js cdn include: https://github.com/gsuriya/final_project_AIT/blob/main/views/layout.hbs#L65
-bootstrap cdn + custom css: https://github.com/gsuriya/final_project_AIT/blob/main/views/layout.hbs#L9-L60
-express-validator middleware: https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L72-L90
-express-validator usage in post route: https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L123-L128
-open food facts proxy route (axios): https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L199-L228
-ajax calorie search (fetch): https://github.com/gsuriya/final_project_AIT/blob/main/views/add.hbs#L27-L79
+chart.js chart rendering: https://github.com/gsuriya/final_project_AIT/blob/main/views/index.hbs#L59-L111
+chart.js cdn include: https://github.com/gsuriya/final_project_AIT/blob/main/views/layout.hbs#L80
+bootstrap cdn + custom css: https://github.com/gsuriya/final_project_AIT/blob/main/views/layout.hbs#L9-L77
+express-validator middleware: https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L72-L96
+express-validator usage in post route: https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L147-L152
+open food facts proxy route (axios): https://github.com/gsuriya/final_project_AIT/blob/main/app.mjs#L265-L304
+ajax calorie search (fetch): https://github.com/gsuriya/final_project_AIT/blob/main/views/add.hbs#L30-L99
 
 Optional project notes 
 --- 
