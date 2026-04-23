@@ -1,0 +1,25 @@
+<h2>edit entry</h2>
+
+{{#if error}}
+  <p class="text-danger">{{error}}</p>
+{{/if}}
+
+<form method="POST" action="/edit/{{entry._id}}">
+  <div class="mb-3">
+    <label class="form-label">what did you eat?</label>
+    <input type="text" class="form-control" name="food" value="{{entry.food}}" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">how many calories?</label>
+    <input type="number" class="form-control" name="calories" min="0" value="{{entry.calories}}" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">when?</label>
+    <input type="date" class="form-control" name="date" value="{{entry.date}}" required>
+  </div>
+
+  <button type="submit" class="btn btn-primary">save changes</button>
+  <a href="/?date={{entry.date}}" class="btn btn-secondary ms-2">cancel</a>
+</form>

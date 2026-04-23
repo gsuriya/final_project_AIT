@@ -1,6 +1,8 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { body, validationResult } from 'express-validator';
+import axios from 'axios';
 import './db.mjs';
 import { FoodEntry, DailyGoal } from './db.mjs';
 
@@ -8,21 +10,19 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// setup handlebars and stuff
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 
-// need this to parse form data
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // es6 class for summarizing a days worth of food
-// kinda overkill but we need to use classes so here we are
 class DaySummary {
   constructor(entries, goal) {
     this.entries = entries;
     this.goal = goal;
-    // use reduce to get total (higher order function)
+    // higher order function: reduce to get total calories
     this.total = entries.reduce((sum, e) => sum + e.calories, 0);
   }
 
@@ -41,35 +41,72 @@ class DaySummary {
     return Math.max(0, this.total - this.goal);
   }
 
-  // filter entries above a certain calorie threshold
-  // another higher order function usage
   getHighCalEntries(threshold) {
+    // higher order function: filter entries above a certain calorie threshold
     return this.entries.filter(e => e.calories > threshold);
   }
 }
+
+// es6 class for formatting search results from the Open Food Facts API
+class FoodSearchResult {
+  constructor(product) {
+    this.name = (product.product_name || 'unknown').substring(0, 80);
+    this.brand = product.brands || '';
+    const nutriments = product.nutriments || {};
+    this.calories = Math.round(nutriments['energy-kcal_100g'] || nutriments['energy-kcal'] || 0);
+  }
+
+  toJSON() {
+    const label = this.brand ? `${this.name} (${this.brand})` : this.name;
+    return { name: label, calories: this.calories };
+  }
+}
+
+// ==============================
+// express-validator middleware arrays (research topic: 2 pts)
+// reusable validation chains for POST routes
+// reference: https://express-validator.github.io/docs/
+// ==============================
+
+const validateFoodEntry = [
+  body('food')
+    .trim()
+    .notEmpty().withMessage('food name is required')
+    .isLength({ max: 100 }).withMessage('food name is too long (max 100 chars)')
+    .escape(),
+  body('calories')
+    .notEmpty().withMessage('calories is required')
+    .isInt({ min: 0, max: 10000 }).withMessage('calories must be between 0 and 10000'),
+  body('date')
+    .notEmpty().withMessage('date is required')
+    .isISO8601().withMessage('invalid date format')
+];
+
+const validateGoal = [
+  body('date')
+    .notEmpty().withMessage('date is required')
+    .isISO8601().withMessage('invalid date format'),
+  body('calorieGoal')
+    .notEmpty().withMessage('calorie goal is required')
+    .isInt({ min: 0, max: 20000 }).withMessage('goal must be between 0 and 20000')
+];
 
 // ==============================
 // ROUTES
 // ==============================
 
-// home page - shows all the food entries for a given day
 app.get('/', async (req, res) => {
-  // default to today if no date param
   const today = new Date().toISOString().slice(0, 10);
   const dateFilter = req.query.date || today;
 
   try {
     const entries = await FoodEntry.find({ date: dateFilter }).sort({ createdAt: -1 });
-
-    // grab the goal for this day if there is one
     const goalDoc = await DailyGoal.findOne({ date: dateFilter });
     const goal = goalDoc ? goalDoc.calorieGoal : null;
 
-    // use the DaySummary class to do the math stuff
     const summary = new DaySummary(entries, goal);
 
-    // need to pass chart data as json strings so handlebars doesnt freak out
-    // map is a higher order function too btw
+    // higher order function: map to transform entries into chart-friendly arrays
     const chartLabels = JSON.stringify(entries.map(e => e.food));
     const chartData = JSON.stringify(entries.map(e => e.calories));
 
@@ -85,50 +122,73 @@ app.get('/', async (req, res) => {
       remaining: summary.getRemaining()
     });
   } catch(err) {
-    // lol hopefully this never happens
     console.log(err);
     res.render('index', { entries: [], total: 0, date: dateFilter });
   }
 });
 
-// page with the form to add a new food entry
 app.get('/add', (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   res.render('add', { today });
 });
 
-// handle the form submission for adding food
-app.post('/add', async (req, res) => {
-  const { food, calories, date } = req.body;
-
-  // basic validation so the app doesnt blow up
-  if (!food || !calories || !date) {
-    return res.render('add', { error: 'yo you gotta fill in all the fields', today: date || '' });
+app.post('/add', validateFoodEntry, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const today = req.body.date || new Date().toISOString().slice(0, 10);
+    return res.render('add', { error: errors.array()[0].msg, today });
   }
-
-  const cal = parseInt(calories);
-  if (isNaN(cal) || cal < 0) {
-    return res.render('add', { error: 'calories has to be a number thats 0 or more', today: date || '' });
-  }
-  if (cal > 10000) {
-    return res.render('add', { error: 'bro thats way too many calories lol max is 10000', today: date || '' });
-  }
-
-  // sanitize the food name so no one injects html or whatever
-  // also trim to 100 chars cuz no food name needs to be longer than that
-  let cleanFood = food.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  cleanFood = cleanFood.trim().substring(0, 100);
 
   try {
-    await FoodEntry.create({ food: cleanFood, calories: cal, date });
+    const { food, calories, date } = req.body;
+    await FoodEntry.create({ food, calories: parseInt(calories), date });
     res.redirect('/?date=' + date);
   } catch(err) {
     console.log(err);
-    res.render('add', { error: 'something went wrong saving that... try again?', today: date || '' });
+    res.render('add', { error: 'something went wrong saving that', today: req.body.date || '' });
   }
 });
 
-// page to set a calorie goal for a day
+// 3rd form: edit an existing food entry
+app.get('/edit/:id', async (req, res) => {
+  try {
+    const entry = await FoodEntry.findById(req.params.id);
+    if (!entry) {
+      return res.redirect('/');
+    }
+    res.render('edit', { entry });
+  } catch(err) {
+    console.log(err);
+    res.redirect('/');
+  }
+});
+
+app.post('/edit/:id', validateFoodEntry, async (req, res) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    try {
+      const entry = await FoodEntry.findById(req.params.id);
+      return res.render('edit', { entry, error: errors.array()[0].msg });
+    } catch(e) {
+      return res.redirect('/');
+    }
+  }
+
+  try {
+    const { food, calories, date } = req.body;
+    await FoodEntry.findByIdAndUpdate(req.params.id, {
+      food,
+      calories: parseInt(calories),
+      date
+    });
+    res.redirect('/?date=' + date);
+  } catch(err) {
+    console.log(err);
+    res.redirect('/');
+  }
+});
+
 app.get('/goal', async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   const dateForGoal = req.query.date || today;
@@ -145,28 +205,19 @@ app.get('/goal', async (req, res) => {
   }
 });
 
-// handle goal form submit
-// uses findOneAndUpdate so it overwrites if theres already a goal for that day
-app.post('/goal', async (req, res) => {
+app.post('/goal', validateGoal, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.render('goal', { error: errors.array()[0].msg, today: req.body.date || '' });
+  }
+
   const { date, calorieGoal } = req.body;
-
-  if (!date || !calorieGoal) {
-    return res.render('goal', { error: 'fill in both fields pls', today: date || '' });
-  }
-
   const goalNum = parseInt(calorieGoal);
-  if (isNaN(goalNum) || goalNum < 0) {
-    return res.render('goal', { error: 'goal has to be a positive number dude', today: date || '' });
-  }
-  if (goalNum > 20000) {
-    return res.render('goal', { error: 'thats... a lot. max is 20000', today: date || '' });
-  }
 
   try {
-    // upsert - create if doesnt exist, update if it does
     await DailyGoal.findOneAndUpdate(
-      { date: date },
-      { date: date, calorieGoal: goalNum },
+      { date },
+      { date, calorieGoal: goalNum },
       { upsert: true, new: true }
     );
     res.render('goal', {
@@ -176,20 +227,57 @@ app.post('/goal', async (req, res) => {
     });
   } catch(err) {
     console.log(err);
-    res.render('goal', { error: 'couldnt save that, idk why', today: date || '' });
+    res.render('goal', { error: 'couldnt save that goal', today: date || '' });
   }
 });
 
-// delete a food entry
 app.post('/delete/:id', async (req, res) => {
   try {
     const entry = await FoodEntry.findByIdAndDelete(req.params.id);
-    // redirect back to the same day so user doesnt lose context
     const date = entry ? entry.date : '';
     res.redirect('/?date=' + date);
   } catch(err) {
     console.log(err);
     res.redirect('/');
+  }
+});
+
+// ==============================
+// API route: proxy to Open Food Facts for calorie lookup (research topic: 3 pts)
+// uses axios on server side to avoid CORS issues
+// client-side fetch calls this endpoint (AJAX interaction)
+// reference: https://wiki.openfoodfacts.org/API
+// ==============================
+
+app.get('/api/search', async (req, res) => {
+  const query = req.query.q;
+  if (!query || query.length < 2) {
+    return res.json([]);
+  }
+
+  try {
+    const response = await axios.get('https://world.openfoodfacts.org/cgi/search.pl', {
+      params: {
+        search_terms: query,
+        search_simple: 1,
+        action: 'process',
+        json: 1,
+        page_size: 8,
+        fields: 'product_name,brands,nutriments'
+      },
+      timeout: 5000
+    });
+
+    const products = (response.data.products || [])
+      .filter(p => p.product_name)
+      .map(p => new FoodSearchResult(p))
+      .filter(r => r.calories > 0)
+      .map(r => r.toJSON());
+
+    res.json(products);
+  } catch(err) {
+    console.log('open food facts api error:', err.message);
+    res.json([]);
   }
 });
 
