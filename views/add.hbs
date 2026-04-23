@@ -1,7 +1,7 @@
 <h2 class="mt-3">add food</h2>
 
 {{#if error}}
-  <div class="alert alert-danger">{{error}}</div>
+  <p class="text-danger">{{error}}</p>
 {{/if}}
 
 <form method="POST" action="/add">
@@ -9,7 +9,7 @@
     <label class="form-label">what did you eat?</label>
     <input type="text" class="form-control" id="foodInput" name="food" placeholder="ex: chicken sandwich" required autocomplete="off">
     <div id="searchResults" class="search-results"></div>
-    <small class="text-muted">start typing to search for calorie info (powered by Open Food Facts)</small>
+    <small class="text-muted">start typing to search for calorie info from open food facts</small>
   </div>
 
   <div class="mb-3">
@@ -25,62 +25,72 @@
   <button type="submit" class="btn btn-primary">add entry</button>
 </form>
 
-<p class="mt-3 text-muted" style="font-size:13px;">not sure about calories? type a food name above and pick from the suggestions!</p>
+<p style="margin-top:16px;font-size:13px;color:#888;">not sure about calories? type a food name above and pick from the suggestions, or just guess lol close enough is fine</p>
 
-<!--
-  research topic: external api - open food facts (3 points)
-  ajax-based calorie lookup using fetch + server-side proxy with axios
-  the proxy is at /api/search?q=... which calls Open Food Facts API
-  reference: https://wiki.openfoodfacts.org/API
--->
+<!-- open food facts api search (research topic, 3 pts)
+     when you type a food name it searches their database and shows calorie info
+     uses fetch to call our /api/search proxy route
+     docs: https://wiki.openfoodfacts.org/API -->
 <script>
-const foodInput = document.getElementById('foodInput');
-const calInput = document.getElementById('calInput');
-const resultsDiv = document.getElementById('searchResults');
+// grab the input fields we need
+var foodInput = document.getElementById('foodInput');
+var calInput = document.getElementById('calInput');
+var resultsDiv = document.getElementById('searchResults');
 
-let debounceTimer = null;
+var searchTimer = null;
 
+// listen for typing in the food name field
 foodInput.addEventListener('input', function() {
-  clearTimeout(debounceTimer);
-  const query = this.value.trim();
+  clearTimeout(searchTimer);
+  var query = this.value.trim();
 
+  // dont search until at least 3 chars
   if (query.length < 3) {
     resultsDiv.style.display = 'none';
     return;
   }
 
-  debounceTimer = setTimeout(async () => {
-    try {
-      const resp = await fetch('/api/search?q=' + encodeURIComponent(query));
-      const products = await resp.json();
+  // wait 400ms after they stop typing before searching
+  // so we dont spam the api with every keystroke lol
+  searchTimer = setTimeout(function() {
+    fetch('/api/search?q=' + encodeURIComponent(query))
+      .then(function(resp) { return resp.json(); })
+      .then(function(products) {
+        if (products.length === 0) {
+          resultsDiv.innerHTML = '<div class="search-result-item text-muted">no results found</div>';
+          resultsDiv.style.display = 'block';
+          return;
+        }
 
-      if (products.length === 0) {
-        resultsDiv.innerHTML = '<div class="search-result-item text-muted">no results found</div>';
+        // build the dropdown items
+        var html = '';
+        for (var i = 0; i < products.length; i++) {
+          var p = products[i];
+          html += '<div class="search-result-item" data-name="' + p.name.replace(/"/g, '&quot;') + '" data-cal="' + p.calories + '">';
+          html += '<strong>' + p.name + '</strong><br><small>' + p.calories + ' cals per 100g</small></div>';
+        }
+        resultsDiv.innerHTML = html;
         resultsDiv.style.display = 'block';
-        return;
-      }
 
-      resultsDiv.innerHTML = products.map(p =>
-        '<div class="search-result-item" data-name="' + p.name.replace(/"/g, '&quot;') + '" data-cal="' + p.calories + '">' +
-        '<strong>' + p.name + '</strong><br><small>' + p.calories + ' cals per serving</small></div>'
-      ).join('');
-
-      resultsDiv.style.display = 'block';
-
-      resultsDiv.querySelectorAll('.search-result-item[data-cal]').forEach(item => {
-        item.addEventListener('click', function() {
-          foodInput.value = this.dataset.name;
-          calInput.value = this.dataset.cal;
-          resultsDiv.style.display = 'none';
-        });
+        // when you click a result, fill in the food name and calories
+        var items = resultsDiv.querySelectorAll('.search-result-item[data-cal]');
+        for (var j = 0; j < items.length; j++) {
+          items[j].addEventListener('click', function() {
+            foodInput.value = this.getAttribute('data-name');
+            calInput.value = this.getAttribute('data-cal');
+            resultsDiv.style.display = 'none';
+          });
+        }
+      })
+      .catch(function(err) {
+        // if something goes wrong just hide the dropdown, nbd
+        console.log('search error:', err);
+        resultsDiv.style.display = 'none';
       });
-    } catch(err) {
-      console.log('search error:', err);
-      resultsDiv.style.display = 'none';
-    }
   }, 400);
 });
 
+// close the dropdown when you click somewhere else
 document.addEventListener('click', function(e) {
   if (!resultsDiv.contains(e.target) && e.target !== foodInput) {
     resultsDiv.style.display = 'none';

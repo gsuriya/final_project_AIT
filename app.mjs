@@ -10,19 +10,23 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// setup handlebars and stuff
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 
+// need this to parse form data
 app.use(express.urlencoded({ extended: false }));
+// also need this for the api search route to work
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // es6 class for summarizing a days worth of food
+// kinda overkill but we need to use classes so here we are
 class DaySummary {
   constructor(entries, goal) {
     this.entries = entries;
     this.goal = goal;
-    // higher order function: reduce to get total calories
+    // use reduce to get total (higher order function)
     this.total = entries.reduce((sum, e) => sum + e.calories, 0);
   }
 
@@ -41,17 +45,20 @@ class DaySummary {
     return Math.max(0, this.total - this.goal);
   }
 
+  // filter entries above a certain calorie threshold
+  // another higher order function usage
   getHighCalEntries(threshold) {
-    // higher order function: filter entries above a certain calorie threshold
     return this.entries.filter(e => e.calories > threshold);
   }
 }
 
-// es6 class for formatting search results from the Open Food Facts API
+// another class for cleaning up the data we get back from open food facts
+// their api returns a ton of junk so this just grabs the stuff we actually need
 class FoodSearchResult {
   constructor(product) {
     this.name = (product.product_name || 'unknown').substring(0, 80);
     this.brand = product.brands || '';
+    // the nutriments object has like 50 fields lol we only want kcal
     const nutriments = product.nutriments || {};
     this.calories = Math.round(nutriments['energy-kcal_100g'] || nutriments['energy-kcal'] || 0);
   }
@@ -62,51 +69,52 @@ class FoodSearchResult {
   }
 }
 
-// ==============================
-// express-validator middleware arrays (research topic: 2 pts)
-// reusable validation chains for POST routes
-// reference: https://express-validator.github.io/docs/
-// ==============================
-
-const validateFoodEntry = [
+// express-validator stuff
+// way better than doing manual if/else for every single field lol
+// learned about this from https://express-validator.github.io/docs/
+const validateFood = [
   body('food')
     .trim()
-    .notEmpty().withMessage('food name is required')
-    .isLength({ max: 100 }).withMessage('food name is too long (max 100 chars)')
+    .notEmpty().withMessage('yo you gotta enter a food name')
+    .isLength({ max: 100 }).withMessage('thats way too long, keep it under 100 chars')
     .escape(),
   body('calories')
-    .notEmpty().withMessage('calories is required')
-    .isInt({ min: 0, max: 10000 }).withMessage('calories must be between 0 and 10000'),
+    .notEmpty().withMessage('you forgot the calories')
+    .isInt({ min: 0, max: 10000 }).withMessage('calories gotta be between 0 and 10000'),
   body('date')
-    .notEmpty().withMessage('date is required')
-    .isISO8601().withMessage('invalid date format')
+    .notEmpty().withMessage('pick a date pls')
+    .isISO8601().withMessage('something is wrong with that date')
 ];
 
 const validateGoal = [
   body('date')
-    .notEmpty().withMessage('date is required')
-    .isISO8601().withMessage('invalid date format'),
+    .notEmpty().withMessage('pick a date pls')
+    .isISO8601().withMessage('something is wrong with that date'),
   body('calorieGoal')
-    .notEmpty().withMessage('calorie goal is required')
-    .isInt({ min: 0, max: 20000 }).withMessage('goal must be between 0 and 20000')
+    .notEmpty().withMessage('you forgot to enter a goal')
+    .isInt({ min: 0, max: 20000 }).withMessage('goal gotta be between 0 and 20000')
 ];
 
-// ==============================
 // ROUTES
-// ==============================
 
+// home page - shows all the food entries for a given day
 app.get('/', async (req, res) => {
+  // default to today if no date param
   const today = new Date().toISOString().slice(0, 10);
   const dateFilter = req.query.date || today;
 
   try {
     const entries = await FoodEntry.find({ date: dateFilter }).sort({ createdAt: -1 });
+
+    // grab the goal for this day if there is one
     const goalDoc = await DailyGoal.findOne({ date: dateFilter });
     const goal = goalDoc ? goalDoc.calorieGoal : null;
 
+    // use the DaySummary class to do the math stuff
     const summary = new DaySummary(entries, goal);
 
-    // higher order function: map to transform entries into chart-friendly arrays
+    // need to pass chart data as json strings so handlebars doesnt freak out
+    // map is a higher order function too btw
     const chartLabels = JSON.stringify(entries.map(e => e.food));
     const chartData = JSON.stringify(entries.map(e => e.calories));
 
@@ -122,17 +130,21 @@ app.get('/', async (req, res) => {
       remaining: summary.getRemaining()
     });
   } catch(err) {
+    // lol hopefully this never happens
     console.log(err);
     res.render('index', { entries: [], total: 0, date: dateFilter });
   }
 });
 
+// page with the form to add a new food entry
 app.get('/add', (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   res.render('add', { today });
 });
 
-app.post('/add', validateFoodEntry, async (req, res) => {
+// handle the form submission for adding food
+// using express-validator middleware instead of manual checks now
+app.post('/add', validateFood, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const today = req.body.date || new Date().toISOString().slice(0, 10);
@@ -145,11 +157,11 @@ app.post('/add', validateFoodEntry, async (req, res) => {
     res.redirect('/?date=' + date);
   } catch(err) {
     console.log(err);
-    res.render('add', { error: 'something went wrong saving that', today: req.body.date || '' });
+    res.render('add', { error: 'something went wrong saving that... try again?', today: req.body.date || '' });
   }
 });
 
-// 3rd form: edit an existing food entry
+// edit page - basically the same as add but with pre-filled values
 app.get('/edit/:id', async (req, res) => {
   try {
     const entry = await FoodEntry.findById(req.params.id);
@@ -163,10 +175,12 @@ app.get('/edit/:id', async (req, res) => {
   }
 });
 
-app.post('/edit/:id', validateFoodEntry, async (req, res) => {
+// handle edit form submit
+app.post('/edit/:id', validateFood, async (req, res) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
+    // gotta re-fetch the entry so we can show the form again with the error
     try {
       const entry = await FoodEntry.findById(req.params.id);
       return res.render('edit', { entry, error: errors.array()[0].msg });
@@ -189,6 +203,7 @@ app.post('/edit/:id', validateFoodEntry, async (req, res) => {
   }
 });
 
+// page to set a calorie goal for a day
 app.get('/goal', async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   const dateForGoal = req.query.date || today;
@@ -205,6 +220,8 @@ app.get('/goal', async (req, res) => {
   }
 });
 
+// handle goal form submit
+// uses findOneAndUpdate so it overwrites if theres already a goal for that day
 app.post('/goal', validateGoal, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -215,9 +232,10 @@ app.post('/goal', validateGoal, async (req, res) => {
   const goalNum = parseInt(calorieGoal);
 
   try {
+    // upsert - create if doesnt exist, update if it does
     await DailyGoal.findOneAndUpdate(
-      { date },
-      { date, calorieGoal: goalNum },
+      { date: date },
+      { date: date, calorieGoal: goalNum },
       { upsert: true, new: true }
     );
     res.render('goal', {
@@ -227,13 +245,15 @@ app.post('/goal', validateGoal, async (req, res) => {
     });
   } catch(err) {
     console.log(err);
-    res.render('goal', { error: 'couldnt save that goal', today: date || '' });
+    res.render('goal', { error: 'couldnt save that, idk why', today: date || '' });
   }
 });
 
+// delete a food entry
 app.post('/delete/:id', async (req, res) => {
   try {
     const entry = await FoodEntry.findByIdAndDelete(req.params.id);
+    // redirect back to the same day so user doesnt lose context
     const date = entry ? entry.date : '';
     res.redirect('/?date=' + date);
   } catch(err) {
@@ -242,13 +262,11 @@ app.post('/delete/:id', async (req, res) => {
   }
 });
 
-// ==============================
-// API route: proxy to Open Food Facts for calorie lookup (research topic: 3 pts)
-// uses axios on server side to avoid CORS issues
-// client-side fetch calls this endpoint (AJAX interaction)
-// reference: https://wiki.openfoodfacts.org/API
-// ==============================
-
+// api route that proxies to open food facts
+// had to do this on the server side cuz the browser blocks cross origin requests
+// uses axios to hit their search api, then we just grab the name + calories
+// and send it back as json so the frontend can use fetch to get it
+// api docs: https://wiki.openfoodfacts.org/API
 app.get('/api/search', async (req, res) => {
   const query = req.query.q;
   if (!query || query.length < 2) {
@@ -268,6 +286,8 @@ app.get('/api/search', async (req, res) => {
       timeout: 5000
     });
 
+    // filter out junk results and use the FoodSearchResult class to clean em up
+    // also filter and map are both higher order functions btw
     const products = (response.data.products || [])
       .filter(p => p.product_name)
       .map(p => new FoodSearchResult(p))
@@ -276,7 +296,9 @@ app.get('/api/search', async (req, res) => {
 
     res.json(products);
   } catch(err) {
-    console.log('open food facts api error:', err.message);
+    // if the api is down or whatever just return empty array
+    // dont wanna crash the whole app over this lol
+    console.log('food search api error:', err.message);
     res.json([]);
   }
 });

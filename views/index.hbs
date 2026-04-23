@@ -12,10 +12,10 @@
 
 {{#if goal}}
 <div class="goal-box">
-  <p>🎯 goal: <strong>{{goal}} cals</strong></p>
+  <p>goal: <strong>{{goal}} cals</strong></p>
   <p>eaten so far: <strong>{{total}} cals</strong></p>
   {{#if overGoal}}
-    <p class="over">⚠️ you went over by {{overBy}} cals</p>
+    <p class="over">⚠️ you went over by {{overBy}} cals... rip</p>
   {{else}}
     <p class="under">✅ {{remaining}} cals left, you got this</p>
   {{/if}}
@@ -32,23 +32,23 @@
     </tr>
   </thead>
   <tbody>
-    {{#each entries}}
-    <tr>
-      <td>{{this.food}}</td>
-      <td>{{this.calories}}</td>
-      <td>
-        <a href="/edit/{{this._id}}" class="btn btn-sm btn-outline-secondary me-1">✏️</a>
-        <form method="POST" action="/delete/{{this._id}}" style="display:inline;">
-          <button class="btn btn-danger btn-sm del-btn" type="submit">x</button>
-        </form>
-      </td>
-    </tr>
-    {{/each}}
+  {{#each entries}}
+  <tr>
+    <td>{{this.food}}</td>
+    <td>{{this.calories}}</td>
+    <td>
+      <a href="/edit/{{this._id}}" class="btn btn-sm btn-outline-secondary me-1">✏️</a>
+      <form method="POST" action="/delete/{{this._id}}" style="display:inline;">
+        <button class="btn btn-danger btn-sm del-btn" type="submit">x</button>
+      </form>
+    </td>
+  </tr>
+  {{/each}}
   </tbody>
 </table>
 <p class="fw-bold">total: {{total}} calories</p>
 {{else}}
-<div class="alert alert-light mt-3">no entries yet for this day. go add some food!</div>
+<p>no entries yet for this day. go add some food!</p>
 {{/if}}
 
 <!--
@@ -62,9 +62,14 @@
   <canvas id="calChart" width="400" height="200"></canvas>
 </div>
 <script>
+// chart.js integration - took me a while to get this working ngl
+// basically just grabs the food names and calorie values
+// and throws them into a bar chart
 const labels = {{{chartLabels}}};
 const data = {{{chartData}}};
 
+// some green colors i picked to match the theme
+// cycles thru if theres more than 6 entries
 const colors = [
   'rgba(46, 125, 50, 0.6)',
   'rgba(67, 160, 71, 0.6)',
@@ -74,6 +79,7 @@ const colors = [
   'rgba(76, 175, 80, 0.6)'
 ];
 
+// pick colors for each bar, wraps around if needed
 const barColors = data.map((_, i) => colors[i % colors.length]);
 
 const ctx = document.getElementById('calChart').getContext('2d');
