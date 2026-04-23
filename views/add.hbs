@@ -1,21 +1,89 @@
-<h2>add food</h2>
+<h2 class="mt-3">add food</h2>
 
 {{#if error}}
-  <p class="err">{{error}}</p>
+  <div class="alert alert-danger">{{error}}</div>
 {{/if}}
 
 <form method="POST" action="/add">
-  <label>what did you eat?</label>
-  <input type="text" name="food" placeholder="ex: chicken sandwich" required>
+  <div class="mb-3">
+    <label class="form-label">what did you eat?</label>
+    <input type="text" class="form-control" id="foodInput" name="food" placeholder="ex: chicken sandwich" required autocomplete="off">
+    <div id="searchResults" class="search-results"></div>
+    <small class="text-muted">start typing to search for calorie info (powered by Open Food Facts)</small>
+  </div>
 
-  <label>how many calories?</label>
-  <input type="number" name="calories" min="0" placeholder="ex: 350" required>
+  <div class="mb-3">
+    <label class="form-label">how many calories?</label>
+    <input type="number" class="form-control" id="calInput" name="calories" min="0" placeholder="ex: 350" required>
+  </div>
 
-  <label>when?</label>
-  <input type="date" name="date" value="{{today}}" required>
+  <div class="mb-3">
+    <label class="form-label">when?</label>
+    <input type="date" class="form-control" name="date" value="{{today}}" required>
+  </div>
 
-  <br><br>
-  <button type="submit">add entry</button>
+  <button type="submit" class="btn btn-primary">add entry</button>
 </form>
 
-<p style="margin-top:16px;font-size:13px;color:#888;">not sure about calories? just guess, close enough is fine lol</p>
+<p class="mt-3 text-muted" style="font-size:13px;">not sure about calories? type a food name above and pick from the suggestions!</p>
+
+<!--
+  research topic: external api - open food facts (3 points)
+  ajax-based calorie lookup using fetch + server-side proxy with axios
+  the proxy is at /api/search?q=... which calls Open Food Facts API
+  reference: https://wiki.openfoodfacts.org/API
+-->
+<script>
+const foodInput = document.getElementById('foodInput');
+const calInput = document.getElementById('calInput');
+const resultsDiv = document.getElementById('searchResults');
+
+let debounceTimer = null;
+
+foodInput.addEventListener('input', function() {
+  clearTimeout(debounceTimer);
+  const query = this.value.trim();
+
+  if (query.length < 3) {
+    resultsDiv.style.display = 'none';
+    return;
+  }
+
+  debounceTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch('/api/search?q=' + encodeURIComponent(query));
+      const products = await resp.json();
+
+      if (products.length === 0) {
+        resultsDiv.innerHTML = '<div class="search-result-item text-muted">no results found</div>';
+        resultsDiv.style.display = 'block';
+        return;
+      }
+
+      resultsDiv.innerHTML = products.map(p =>
+        '<div class="search-result-item" data-name="' + p.name.replace(/"/g, '&quot;') + '" data-cal="' + p.calories + '">' +
+        '<strong>' + p.name + '</strong><br><small>' + p.calories + ' cals per serving</small></div>'
+      ).join('');
+
+      resultsDiv.style.display = 'block';
+
+      resultsDiv.querySelectorAll('.search-result-item[data-cal]').forEach(item => {
+        item.addEventListener('click', function() {
+          foodInput.value = this.dataset.name;
+          calInput.value = this.dataset.cal;
+          resultsDiv.style.display = 'none';
+        });
+      });
+    } catch(err) {
+      console.log('search error:', err);
+      resultsDiv.style.display = 'none';
+    }
+  }, 400);
+});
+
+document.addEventListener('click', function(e) {
+  if (!resultsDiv.contains(e.target) && e.target !== foodInput) {
+    resultsDiv.style.display = 'none';
+  }
+});
+</script>
